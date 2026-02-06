@@ -10,9 +10,9 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Authentication & Infrastructure' (Protocol in workflow.md)
 
 ## Phase 2: Resume API Implementation (POST)
-- [ ] Task: Implement PDF Text Extraction
-    - [ ] Write tests for PDF text extraction (valid and invalid PDFs)
-    - [ ] Implement extraction logic using PyMuPDF or similar
+- [x] Task: Implement PDF Text Extraction 410bb44
+    - [x] Write tests for PDF text extraction (valid and invalid PDFs)
+    - [x] Implement extraction logic using PyMuPDF or similar
 - [ ] Task: Implement LLM Parsing for Resumes
     - [ ] Write tests for LLM prompt generation and response parsing
     - [ ] Integrate with OpenAI/Claude API to extract structured resume data
