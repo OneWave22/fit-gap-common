@@ -1,6 +1,6 @@
 # Implementation Plan: Core Resources API (Resumes & Postings)
 
-## Phase 1: Authentication & Infrastructure
+## Phase 1: Authentication & Infrastructure [checkpoint: d254c8d]
 - [x] Task: Implement API Key Authentication Middleware cf8cf0c
     - [x] Write tests for unauthorized and authorized requests
     - [x] Implement ApiKeyHeader security in FastAPI
