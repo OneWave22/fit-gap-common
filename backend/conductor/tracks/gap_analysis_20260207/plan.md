@@ -1,6 +1,6 @@
 # Implementation Plan: Gap Analysis Engine
 
-## Phase 1: Data Models and Basic Scoring
+## Phase 1: Data Models and Basic Scoring [checkpoint: 0fba310]
 - [x] Task: Define Pydantic models for Analysis Input and Output 8f05db9
     - [x] Write tests for model validation
     - [x] Implement models in models/analysis.py
