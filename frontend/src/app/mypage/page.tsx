@@ -43,6 +43,9 @@ export default function MyPage() {
   const [resumeText, setResumeText] = useState("");
   const [resumeId, setResumeId] = useState<string | null>(null);
   const [resumeSignal, setResumeSignal] = useState<string | null>(null);
+  const [postingSignals, setPostingSignals] = useState<Record<string, string>>(
+    {}
+  );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -69,6 +72,30 @@ export default function MyPage() {
         const resume = json?.data?.resumes?.[0];
         setResumeText(resume?.raw_text || "");
         setResumeId(resume?.id || null);
+        if (json?.data?.user?.role === "COMPANY" && json?.data?.postings?.length) {
+          const nextSignals: Record<string, string> = {};
+          await Promise.all(
+            json.data.postings.map(async (posting: Posting) => {
+              try {
+                const signalRes = await fetch(
+                  `${apiBase}/api/v1/analyze/session/by-posting/${posting.id}`,
+                  {
+                    headers: { Authorization: `Bearer ${accessToken}` },
+                    credentials: "include",
+                  }
+                );
+                const signalJson = await signalRes.json().catch(() => null);
+                const signal = signalJson?.data?.analysis?.signal;
+                if (signal) {
+                  nextSignals[posting.id] = signal;
+                }
+              } catch {
+                // ignore signal errors
+              }
+            })
+          );
+          setPostingSignals(nextSignals);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "마이페이지 조회 실패");
       } finally {
@@ -368,9 +395,27 @@ export default function MyPage() {
                     <span>
                       {posting.company_name || "회사명"} / 공고 ID: {posting.id}
                     </span>
-                    <span className="text-xs text-slate-500">
-                      {posting.created_at}
-                    </span>
+                    <div className="flex items-center gap-3 text-xs text-slate-500">
+                      {postingSignals[posting.id] ? (
+                        <span className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                          <span
+                            className={`h-2.5 w-2.5 rounded-full ${
+                              postingSignals[posting.id] === "green"
+                                ? "bg-emerald-500"
+                                : postingSignals[posting.id] === "yellow"
+                                  ? "bg-amber-400"
+                                  : "bg-rose-500"
+                            }`}
+                          />
+                          {postingSignals[posting.id] === "green"
+                            ? "양호"
+                            : postingSignals[posting.id] === "yellow"
+                              ? "주의"
+                              : "위험"}
+                        </span>
+                      ) : null}
+                      <span>{posting.created_at}</span>
+                    </div>
                   </div>
                 ))
               ) : (

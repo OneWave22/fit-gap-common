@@ -18,6 +18,7 @@ export default function PostingsPage() {
   const [companyName, setCompanyName] = useState("");
   const [rawText, setRawText] = useState("");
   const [postings, setPostings] = useState<Posting[]>([]);
+  const [signals, setSignals] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -52,7 +53,35 @@ export default function PostingsPage() {
         if (!res.ok) {
           throw new Error(json?.error?.message || "공고 조회 실패");
         }
-        setPostings(json?.data?.postings || []);
+        const nextPostings = json?.data?.postings || [];
+        setPostings(nextPostings);
+        if (nextPostings.length) {
+          const signalEntries = await Promise.all(
+            nextPostings.map(async (posting: Posting) => {
+              try {
+                const signalRes = await fetch(
+                  `${apiBase}/api/v1/analyze/session/by-posting/${posting.id}`,
+                  {
+                    headers: { Authorization: `Bearer ${accessToken}` },
+                    credentials: "include",
+                  }
+                );
+                const signalJson = await signalRes.json().catch(() => null);
+                const signal = signalJson?.data?.analysis?.signal || null;
+                return [posting.id, signal] as const;
+              } catch {
+                return [posting.id, null] as const;
+              }
+            })
+          );
+          const nextSignals: Record<string, string> = {};
+          for (const [id, signal] of signalEntries) {
+            if (signal) {
+              nextSignals[id] = signal;
+            }
+          }
+          setSignals(nextSignals);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : "공고 조회 실패");
       } finally {
@@ -99,8 +128,8 @@ export default function PostingsPage() {
         created_at: json?.data?.created_at,
       };
       setPostings([newPosting, ...postings]);
-      const resumeId = sessionStorage.getItem("resumeId");
-      if (resumeId && newPosting.id) {
+      if (newPosting.id) {
+        const resumeId = sessionStorage.getItem("resumeId");
         const analysisRes = await fetch(`${apiBase}/api/v1/analyze/session`, {
           method: "POST",
           headers: {
@@ -108,11 +137,19 @@ export default function PostingsPage() {
             Authorization: `Bearer ${accessToken}`,
           },
           credentials: "include",
-          body: JSON.stringify({ resume_id: resumeId, posting_id: newPosting.id }),
+          body: JSON.stringify({
+            posting_id: newPosting.id,
+            ...(resumeId ? { resume_id: resumeId } : {}),
+          }),
         });
         const analysisJson = await analysisRes.json().catch(() => null);
         if (analysisRes.ok && analysisJson?.data?.analysis_id) {
           router.push(`/analysis/${analysisJson.data.analysis_id}`);
+          return;
+        }
+        const signal = analysisJson?.data?.signal;
+        if (signal) {
+          setSignals((prev) => ({ ...prev, [newPosting.id]: signal }));
         }
       }
       setCompanyName("");
@@ -191,9 +228,27 @@ export default function PostingsPage() {
                   <span>
                     {posting.company_name || "회사명"} / 공고 ID: {posting.id}
                   </span>
-                  <span className="text-xs text-slate-500">
-                    {posting.created_at}
-                  </span>
+                  <div className="flex items-center gap-3 text-xs text-slate-500">
+                    {signals[posting.id] ? (
+                      <span className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full ${
+                            signals[posting.id] === "green"
+                              ? "bg-emerald-500"
+                              : signals[posting.id] === "yellow"
+                                ? "bg-amber-400"
+                                : "bg-rose-500"
+                          }`}
+                        />
+                        {signals[posting.id] === "green"
+                          ? "양호"
+                          : signals[posting.id] === "yellow"
+                            ? "주의"
+                            : "위험"}
+                      </span>
+                    ) : null}
+                    <span>{posting.created_at}</span>
+                  </div>
                 </div>
               ))
             ) : (
