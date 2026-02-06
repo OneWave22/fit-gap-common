@@ -13,9 +13,9 @@
 - [x] Task: Implement PDF Text Extraction 410bb44
     - [x] Write tests for PDF text extraction (valid and invalid PDFs)
     - [x] Implement extraction logic using PyMuPDF or similar
-- [ ] Task: Implement LLM Parsing for Resumes
-    - [ ] Write tests for LLM prompt generation and response parsing
-    - [ ] Integrate with OpenAI/Claude API to extract structured resume data
+- [x] Task: Implement LLM Parsing for Resumes a36fb0b
+    - [x] Write tests for LLM prompt generation and response parsing
+    - [x] Integrate with OpenAI/Claude API to extract structured resume data
 - [ ] Task: Implement POST /resumes Endpoint
     - [ ] Write integration tests for resume upload, parsing, and storage
     - [ ] Implement endpoint logic including Supabase Storage for store_original
