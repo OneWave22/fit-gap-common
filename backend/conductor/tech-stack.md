@@ -4,6 +4,7 @@
 - **Language:** Python 3.x
 - **Framework:** FastAPI - A modern, fast (high-performance), web framework for building APIs with Python.
 - **Server:** Uvicorn - An ASGI web server implementation for Python.
+- **LLM:** Gemini 3 Flash - Primary language model for parsing and analysis.
 
 ## Database & Infrastructure
 - **BaaS / Database:** Supabase (PostgreSQL) - Used for database management, authentication, and potentially storage.

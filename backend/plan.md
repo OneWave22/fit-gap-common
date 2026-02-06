@@ -4,7 +4,7 @@
 - `main.py`: FastAPI app with single hello-world route
 - `schema.sql`: 4 tables (resumes, job_postings, analyses, posting_insights)
 - `requirements.txt`: fastapi, uvicorn, supabase, python-dotenv
-- `.env.example`: SUPABASE_URL, SUPABASE_KEY, OPENAI_API_KEY
+- `.env.example`: SUPABASE_URL, SUPABASE_KEY, GEMINI_API_KEY
 
 ---
 
@@ -38,18 +38,18 @@ backend/
     services/
       __init__.py
       pdf_parser.py        # pdfplumber text extraction
-      llm_extractor.py     # OpenAI GPT-4o structured extraction
-      embedding.py         # OpenAI text-embedding-3-small
+      llm_extractor.py     # Gemini 3 Flash structured extraction
+      embedding.py         # Gemini text-embedding-004
       matching.py          # Semantic matching (cosine similarity)
       scorer.py            # Rule-based Fit/Gap/Over classification + weighted scoring
-      explainer.py         # LLM explanation generation with citations
+      explainer.py         # Gemini 3 Flash explanation generation with citations
       insight_generator.py # Posting insight analysis
 ```
 
 ### 0-2. Install additional dependencies
 Add to requirements.txt:
 - `pydantic-settings` (env config)
-- `openai` (GPT-4o + embeddings)
+- `google-genai` (Gemini 3 Flash + embeddings)
 - `pdfplumber` (PDF text extraction)
 - `python-multipart` (file upload support)
 - `numpy` (cosine similarity)
@@ -75,7 +75,7 @@ Add to requirements.txt:
 
 ### 1-2. LLM structured extraction (`app/services/llm_extractor.py`)
 - `extract_resume_structure(raw_text: str) -> ParsedResumeData`
-- OpenAI GPT-4o with JSON Schema response_format
+- Gemini 3 Flash with JSON Schema response_format
 - Schema: { skills[], experiences[], metrics[], soft_skills[], keywords[] }
 - Temperature: 0
 
@@ -110,7 +110,7 @@ Add to requirements.txt:
 
 ### 3-1. Embedding service (`app/services/embedding.py`)
 - `get_embeddings(texts: list[str]) -> list[list[float]]`
-- OpenAI text-embedding-3-small, batch embed
+- Gemini text-embedding-004, batch embed
 
 ### 3-2. Matching service (`app/services/matching.py`)
 - `compute_similarity_matrix(posting_embeddings, resume_embeddings) -> matrix`
@@ -125,7 +125,7 @@ Add to requirements.txt:
 
 ### 3-4. Explanation service (`app/services/explainer.py`)
 - `generate_explanation(analysis_result, posting_text, resume_text) -> str`
-- Single LLM call: summary + per-item explanations with source citations + gap suggestions
+- Single Gemini 3 Flash call: summary + per-item explanations with source citations + gap suggestions
 
 ### 3-5. Analysis router (`app/routers/analyses.py`)
 - `POST /v1/analyses` -- full pipeline: fetch -> embed -> match -> score -> explain -> store
@@ -164,9 +164,9 @@ CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
 ### 5-2. Fly.io config (`fly.toml`)
 - Region: nrt (Korea proximity)
 - Internal port 8080
-- Secrets: `fly secrets set SUPABASE_URL=... SUPABASE_KEY=... OPENAI_API_KEY=...`
+- Secrets: `fly secrets set SUPABASE_URL=... SUPABASE_KEY=... GEMINI_API_KEY=...`
 
 ### 5-3. Testing
-- Unit tests: each service in isolation (mock OpenAI API)
+- Unit tests: each service in isolation (mock Gemini API)
 - Integration tests: full pipeline with sample data
 - Sample fixtures: `tests/fixtures/` with sample resume PDF + posting text

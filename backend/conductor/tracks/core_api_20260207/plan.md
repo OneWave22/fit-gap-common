@@ -15,7 +15,7 @@
     - [x] Implement extraction logic using PyMuPDF or similar
 - [x] Task: Implement LLM Parsing for Resumes a36fb0b
     - [x] Write tests for LLM prompt generation and response parsing
-    - [x] Integrate with OpenAI/Claude API to extract structured resume data
+    - [x] Integrate with Gemini 3 Flash API to extract structured resume data
 - [x] Task: Implement POST /resumes Endpoint 20166ca
     - [x] Write integration tests for resume upload, parsing, and storage
     - [x] Implement endpoint logic including Supabase Storage for store_original
@@ -24,7 +24,7 @@
 ## Phase 3: Job Posting API Implementation (POST) [checkpoint: 93e3790]
 - [x] Task: Implement LLM Parsing for Job Postings 7815749
     - [x] Write tests for job posting parsing logic
-    - [x] Implement LLM integration for requirement extraction
+    - [x] Implement Gemini 3 Flash integration for requirement extraction
 - [x] Task: Implement POST /postings Endpoint eb437e6
     - [x] Write integration tests for job posting creation and parsing
     - [x] Implement endpoint and Supabase persistence
