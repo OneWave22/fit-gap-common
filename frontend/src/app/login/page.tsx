@@ -14,7 +14,10 @@ export default function LoginPage() {
             </h1>
           </div>
 
-          <button className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50">
+          <a
+            href="http://localhost:8000/auth/google/start"
+            className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50"
+          >
             <svg
               aria-hidden
               className="h-5 w-5"
@@ -39,7 +42,7 @@ export default function LoginPage() {
               />
             </svg>
             Google로 로그인
-          </button>
+          </a>
 
           <a
             href="/"
