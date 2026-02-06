@@ -38,23 +38,13 @@ export default function HomePageContent() {
               부족한 역량과 합격 가능성을 신호등으로 확인하세요.
             </p>
             <div className="flex flex-col gap-3 sm:flex-row">
-              {role === "COMPANY" ? (
-                <a
-                  href="/postings"
-                  className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold !text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700"
-                >
-                  기업 시작하기
-                  <span aria-hidden>→</span>
-                </a>
-              ) : (
-                <a
-                  href="/resumes"
-                  className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold !text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700"
-                >
-                  구직자 시작하기
-                  <span aria-hidden>→</span>
-                </a>
-              )}
+              <a
+                href="/resumes"
+                className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold !text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700"
+              >
+                구직자 시작하기
+                <span aria-hidden>→</span>
+              </a>
               <a
                 href="/postings"
                 className="flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
