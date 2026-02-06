@@ -1,13 +1,15 @@
 from fastapi import FastAPI, Depends, Security, HTTPException, UploadFile, File, Form, status, Request
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from core.auth import verify_api_key
 from models.analysis import AnalysisInput, AnalysisOutput
 from models.resume import ResumeParsedData
+from models.posting import PostingParsedData
 from logic.skills import compare_skills
 from logic.experience import check_experience_fit
 from logic.recommendations import generate_recommendations
 from core.pdf import extract_text_from_pdf
-from core.llm import parse_resume_with_llm
+from core.llm import parse_resume_with_llm, parse_posting_with_llm
 from core.database import get_supabase_client
 import os
 import shutil
@@ -15,6 +17,11 @@ import tempfile
 from typing import Optional
 
 app = FastAPI()
+
+# --- Schemas for Requests ---
+class PostingCreate(BaseModel):
+    company_name: Optional[str] = None
+    raw_text: str
 
 # Custom exception for our standardized error format
 class FitGapException(Exception):
@@ -111,6 +118,38 @@ async def upload_resume(
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
 
-@app.post("/api/v1/postings", dependencies=[Depends(verify_api_key)])
-def create_posting():
-    return success_response({"message": "Success"})
+@app.post("/api/v1/postings", status_code=201, dependencies=[Depends(verify_api_key)])
+async def create_posting(posting: PostingCreate):
+    """
+    Creates a job posting and parses it using LLM.
+    """
+    if len(posting.raw_text) < 100:
+        raise FitGapException("TEXT_TOO_SHORT", "Job posting text must be at least 100 characters", 400)
+        
+    try:
+        # 1. LLM Parse
+        parsed_data = await parse_posting_with_llm(posting.raw_text)
+        
+        # 2. Save to Supabase
+        supabase = get_supabase_client()
+        db_data = {
+            "company_name": posting.company_name,
+            "raw_text": posting.raw_text,
+            "parsed_data": parsed_data.dict()
+        }
+        res = supabase.table("job_postings").insert(db_data).execute()
+        
+        if not res.data:
+            raise FitGapException("INTERNAL_ERROR", "Failed to save posting to database", 500)
+            
+        return success_response({
+            "posting_id": res.data[0]["id"],
+            "company_name": res.data[0].get("company_name"),
+            "parsed_data": parsed_data.dict(),
+            "created_at": res.data[0].get("created_at")
+        }, status_code=201)
+        
+    except Exception as e:
+        if isinstance(e, FitGapException):
+            raise e
+        raise HTTPException(status_code=500, detail=str(e))
