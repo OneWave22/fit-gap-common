@@ -4,9 +4,9 @@
 - [x] Task: Define Pydantic models for Analysis Input and Output 8f05db9
     - [x] Write tests for model validation
     - [x] Implement models in models/analysis.py
-- [ ] Task: Implement basic Skill Matching logic
-    - [ ] Write tests for exact skill matching
-    - [ ] Implement compare_skills function
+- [x] Task: Implement basic Skill Matching logic a89dd20
+    - [x] Write tests for exact skill matching
+    - [x] Implement compare_skills function
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Data Models and Basic Scoring' (Protocol in workflow.md)
 
 ## Phase 2: Advanced Analysis & Recommendations
