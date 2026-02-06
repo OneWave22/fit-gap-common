@@ -159,10 +159,10 @@
 
 ```
 [클라이언트]                    [서버]                         [외부 서비스]
-Next.js + Tailwind  ──HTTP──▶  FastAPI                        OpenAI GPT-4o
+Next.js + Tailwind  ──HTTP──▶  FastAPI                        Gemini 3 Flash
                               ├─ /api/resumes    (서류 파싱)     (구조화 추출, 설명 생성)
-                              ├─ /api/postings   (공고 파싱)   OpenAI Embeddings
-                              ├─ /api/analysis   (Fit-Gap)     (의미 유사도)
+                              ├─ /api/postings   (공고 파싱)   
+                              ├─ /api/analysis   (Fit-Gap)     
                               ├─ /api/screening  (신호등)     Supabase (PostgreSQL)
                               └─ /api/insights   (공고 인사이트)  (데이터 저장)
 ```
@@ -173,8 +173,7 @@ Next.js + Tailwind  ──HTTP──▶  FastAPI                        OpenAI G
 |--------|-------------------------------|-----------|
 | 프론트엔드 | Next.js + Tailwind CSS        | 빠른 프로토타이핑 |
 | 백엔드 | FastAPI (Python)              | LLM 연동 생태계, 빠른 개발 |
-| AI/LLM | OpenAI GPT-4o (또는 Claude)     | Structured Output 지원 |
-| 임베딩 | OpenAI text-embedding-3-small | 의미 유사도 비교 |
+| AI/LLM | Gemini 3 Flash                | Structured Output 지원 |
 | DB | Supabase (PostgreSQL)         | 쿼리 부담 감소, 배포 불필요 |
 | 배포 | Vercel (프론트) + Fly.io (백엔드)   | 무료 티어 활용 |
 | PDF 파싱 | pdfplumber                    | 텍스트 추출 |

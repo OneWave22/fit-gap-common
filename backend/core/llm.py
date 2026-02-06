@@ -3,10 +3,13 @@ import os
 from typing import Dict, Any
 from models.resume import ResumeParsedData
 from models.posting import PostingParsedData
-from openai import OpenAI
+from google import genai
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Initialize Gemini Client
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
 # --- Resume Parsing ---
 
@@ -39,16 +42,17 @@ def parse_llm_resume_response(response_text: str) -> ResumeParsedData:
     return ResumeParsedData(**data)
 
 async def parse_resume_with_llm(raw_text: str) -> ResumeParsedData:
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     prompt = generate_resume_prompt(raw_text)
     
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role": "user", "content": prompt}],
-        response_format={"type": "json_object"}
+    response = client.models.generate_content(
+        model="gemini-3-flash-preview",
+        contents=prompt,
+        config={
+            'response_mime_type': 'application/json',
+        }
     )
     
-    return parse_llm_resume_response(response.choices[0].message.content)
+    return parse_llm_resume_response(response.text)
 
 # --- Job Posting Parsing ---
 
@@ -81,13 +85,14 @@ def parse_llm_posting_response(response_text: str) -> PostingParsedData:
     return PostingParsedData(**data)
 
 async def parse_posting_with_llm(raw_text: str) -> PostingParsedData:
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
     prompt = generate_posting_prompt(raw_text)
     
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role": "user", "content": prompt}],
-        response_format={"type": "json_object"}
+    response = client.models.generate_content(
+        model="gemini-3-flash-preview",
+        contents=prompt,
+        config={
+            'response_mime_type': 'application/json',
+        }
     )
     
-    return parse_llm_posting_response(response.choices[0].message.content)
+    return parse_llm_posting_response(response.text)

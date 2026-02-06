@@ -440,8 +440,7 @@ Step 4. 점수 산출 + 설명 생성
 |------------|-------------------------------|--------------------------------------|
 | **프론트엔드**  | Next.js + Tailwind CSS        | 빠른 프로토타이핑, SSR로 데모 속도 확보             |
 | **백엔드**    | FastAPI                       | LLM 연동 라이브러리(LangChain 등) 생태계, 빠른 개발 |
-| **AI/LLM** | OpenAI GPT-4o (또는 Claude)     | Structured Output 지원, 비용 대비 성능       |
-| **임베딩**    | OpenAI text-embedding-3-small | 의미 유사도 비교용                           |
+| **AI/LLM** | Gemini 3 Flash                | Structured Output 지원, 비용 대비 성능       |
 | **DB**     | Supabase(Postgres)            | 쿼리문 작성 부담 감소, DB 배포 필요 없음            |
 | **배포**     | Vercel (프론트) + Fly.io (백엔드)   | 무료 티어 활용, 빠른 배포                      |
 | **PDF 파싱** | PyPDF2 또는 pdfplumber          | 자소서 PDF 텍스트 추출                       |

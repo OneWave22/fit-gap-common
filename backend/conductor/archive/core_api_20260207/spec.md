@@ -16,7 +16,7 @@ This track implements the core resource management APIs for the Fit-Gap platform
   - **Processing:**
     1. Validate file size and type (PDF only).
     2. Extract raw text from PDF (using PyMuPDF or similar).
-    3. **LLM Parsing:** Send raw text to an LLM (e.g., OpenAI/Claude) to extract structured data (skills, experience, etc.) matching the schema in @api.md.
+    3. **LLM Parsing:** Send raw text to an LLM (e.g., Gemini 3 Flash) to extract structured data (skills, experience, etc.) matching the schema in @api.md.
     4. **Storage:** Save parsed_data and metadata to Supabase esumes table.
     5. **File Storage:** If store_original is true, upload the PDF to Supabase Storage.
   - **Output:** 201 Created with esume_id and parsed_data.
