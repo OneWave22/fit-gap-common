@@ -42,6 +42,7 @@ export default function MyPage() {
   const [nickname, setNickname] = useState("");
   const [resumeText, setResumeText] = useState("");
   const [resumeId, setResumeId] = useState<string | null>(null);
+  const [resumeSignal, setResumeSignal] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -77,6 +78,32 @@ export default function MyPage() {
 
     fetchData();
   }, [apiBase, router]);
+
+  useEffect(() => {
+    const accessToken = localStorage.getItem("accessToken");
+    if (!accessToken || !resumeId) {
+      setResumeSignal(null);
+      return;
+    }
+
+    const fetchSignal = async () => {
+      try {
+        const res = await fetch(`${apiBase}/analyses/by-resume/${resumeId}`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          credentials: "include",
+        });
+        const json = await res.json().catch(() => null);
+        if (!res.ok) {
+          return;
+        }
+        setResumeSignal(json?.data?.analysis?.signal || null);
+      } catch {
+        // ignore signal errors
+      }
+    };
+
+    fetchSignal();
+  }, [apiBase, resumeId]);
 
   const handleSaveNickname = async () => {
     const accessToken = localStorage.getItem("accessToken");
@@ -277,9 +304,29 @@ export default function MyPage() {
 
         {data?.user.role === "JOBSEEKER" ? (
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-semibold text-slate-900">
-              자기소개서
-            </h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-semibold text-slate-900">
+                자기소개서
+              </h2>
+              {resumeSignal ? (
+                <span className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                  <span
+                    className={`h-2.5 w-2.5 rounded-full ${
+                      resumeSignal === "green"
+                        ? "bg-emerald-500"
+                        : resumeSignal === "yellow"
+                          ? "bg-amber-400"
+                          : "bg-rose-500"
+                    }`}
+                  />
+                  {resumeSignal === "green"
+                    ? "양호"
+                    : resumeSignal === "yellow"
+                      ? "주의"
+                      : "위험"}
+                </span>
+              ) : null}
+            </div>
             <p className="mt-2 text-sm text-slate-600">
               계정당 1개의 자기소개서를 작성할 수 있습니다.
             </p>

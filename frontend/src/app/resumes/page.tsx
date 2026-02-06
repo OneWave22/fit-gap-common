@@ -18,6 +18,7 @@ export default function ResumesPage() {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -86,7 +87,8 @@ export default function ResumesPage() {
       if (!res.ok) {
         throw new Error(json?.error?.message || "이력서 업로드 실패");
       }
-      setResumes([{ id: json?.data?.resume_id }, ...resumes]);
+      const resumeId = json?.data?.resume_id;
+      setResumes([{ id: resumeId }, ...resumes]);
       if (json?.data?.resume_id) {
         sessionStorage.setItem("resumeId", json.data.resume_id);
       }
@@ -176,10 +178,50 @@ export default function ResumesPage() {
 
         <div className="sticky bottom-6 flex justify-end">
           <button
-            onClick={() => router.push("/postings")}
-            className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-200"
+            onClick={async () => {
+              const accessToken = localStorage.getItem("accessToken");
+              const resumeId =
+                sessionStorage.getItem("resumeId") || resumes[0]?.id;
+              if (!accessToken) {
+                router.replace("/login");
+                return;
+              }
+              if (!resumeId) {
+                setError("이력서를 먼저 저장해 주세요.");
+                return;
+              }
+              setAnalyzing(true);
+              setError("");
+              try {
+                const res = await fetch(`${apiBase}/analyses`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${accessToken}`,
+                  },
+                  credentials: "include",
+                  body: JSON.stringify({
+                    resume_id: resumeId,
+                  }),
+                });
+                const json = await res.json().catch(() => null);
+                if (!res.ok) {
+                  throw new Error(json?.error?.message || "분석 실패");
+                }
+                const analysisId = json?.data?.analysis_id;
+                if (analysisId) {
+                  router.push(`/analysis/${analysisId}`);
+                }
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "분석 실패");
+              } finally {
+                setAnalyzing(false);
+              }
+            }}
+            className="rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-200 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={analyzing || resumes.length === 0}
           >
-            저장하고 공고 입력하기
+            {analyzing ? "분석 중..." : "저장하고 분석하기"}
           </button>
         </div>
       </div>

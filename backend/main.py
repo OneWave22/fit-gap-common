@@ -71,7 +71,7 @@ class ResumeTextUpdate(BaseModel):
 
 class AnalysisRequest(BaseModel):
     resume_id: UUID
-    posting_id: UUID
+    posting_id: Optional[UUID] = None
 
 class AnalysisRead(BaseModel):
     analysis_id: UUID
@@ -621,18 +621,20 @@ def create_analysis(
     if not resume:
         raise FitGapException("NOT_FOUND", "Resume not found", 404)
 
-    posting = (
-        supabase.table("job_postings")
-        .select("*")
-        .eq("id", str(payload.posting_id))
-        .single()
-        .execute()
-    ).data
-    if not posting:
-        raise FitGapException("NOT_FOUND", "Posting not found", 404)
+    posting = None
+    if payload.posting_id:
+        posting = (
+            supabase.table("job_postings")
+            .select("*")
+            .eq("id", str(payload.posting_id))
+            .single()
+            .execute()
+        ).data
+        if not posting:
+            raise FitGapException("NOT_FOUND", "Posting not found", 404)
 
     resume_parsed = resume.get("parsed_data") or {}
-    posting_parsed = posting.get("parsed_data") or {}
+    posting_parsed = posting.get("parsed_data") or {} if posting else {}
 
     resume_skills = resume_parsed.get("skills", [])
     job_skills = posting_parsed.get("required_skills", [])
@@ -642,11 +644,22 @@ def create_analysis(
     experience_alignment = check_experience_fit(resume_exp, job_min_years)
     recommendations = generate_recommendations(missing_skills)
 
-    skill_score = len(matched_skills) / len(job_skills) if job_skills else 1.0
-    exp_weight = {"Exceeds": 1.0, "Matches": 1.0, "Partial": 0.5, "Below": 0.0}.get(
-        experience_alignment, 0.0
-    )
-    overall_score = int(round((skill_score * 0.7 + exp_weight * 0.3) * 100))
+    if posting:
+        skill_score = len(matched_skills) / len(job_skills) if job_skills else 1.0
+        exp_weight = {"Exceeds": 1.0, "Matches": 1.0, "Partial": 0.5, "Below": 0.0}.get(
+            experience_alignment, 0.0
+        )
+        overall_score = int(round((skill_score * 0.7 + exp_weight * 0.3) * 100))
+    else:
+        raw_text = resume.get("raw_text") or ""
+        score = 40
+        if len(resume_skills) >= 5:
+            score += 20
+        if resume_exp:
+            score += 20
+        if len(raw_text) >= 500:
+            score += 20
+        overall_score = min(100, score)
     if overall_score >= 80:
         signal = "green"
     elif overall_score >= 40:
@@ -656,7 +669,7 @@ def create_analysis(
 
     insert_data = {
         "resume_id": str(payload.resume_id),
-        "posting_id": str(payload.posting_id),
+        "posting_id": str(payload.posting_id) if payload.posting_id else None,
         "overall_score": overall_score,
         "fit_items": matched_skills,
         "gap_items": missing_skills,
@@ -714,6 +727,55 @@ def get_analysis(
             "over_items": analysis.get("over_items") or [],
             "summary": analysis.get("explanation") or "",
             "confidence": analysis.get("confidence") or "Medium",
+        }
+    )
+
+@app.get("/analyses/by-resume/{resume_id}")
+def get_latest_analysis_by_resume(
+    resume_id: UUID, token_data: Dict[str, Any] = Depends(require_access_token)
+):
+    user_id = token_data.get("sub")
+    supabase = get_supabase_client()
+
+    resume = (
+        supabase.table("resumes")
+        .select("id")
+        .eq("id", str(resume_id))
+        .eq("user_id", user_id)
+        .single()
+        .execute()
+    ).data
+    if not resume:
+        raise FitGapException("NOT_FOUND", "Resume not found", 404)
+
+    analysis_res = (
+        supabase.table("analyses")
+        .select("*")
+        .eq("resume_id", str(resume_id))
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    analysis = analysis_res.data[0] if analysis_res.data else None
+    if not analysis:
+        return success_response({"analysis": None})
+
+    overall_score = analysis.get("overall_score") or 0
+    if overall_score >= 80:
+        signal = "green"
+    elif overall_score >= 40:
+        signal = "yellow"
+    else:
+        signal = "red"
+
+    return success_response(
+        {
+            "analysis": {
+                "analysis_id": analysis.get("id"),
+                "overall_score": overall_score,
+                "signal": signal,
+                "created_at": analysis.get("created_at"),
+            }
         }
     )
 
