@@ -25,7 +25,7 @@ def test_analyze_endpoint_success(mock_api_key):
     response = client.post("/api/v1/analyze", json=payload, headers={"Authorization": f"Bearer {mock_api_key}"})
     
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["data"]
     assert data["overall_score"] > 0
     assert "Python" in data["matched_skills"]
     assert "SQL" in data["missing_skills"]

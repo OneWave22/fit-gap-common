@@ -12,26 +12,22 @@ def mock_api_key():
     return key
 
 def test_auth_missing_header():
-    response = client.get("/")
-    # Even the root might need auth based on "All endpoints defined below must be protected"
-    # Wait, usually root is public, but let's see if we should protect it or a specific sub-path.
-    # The spec says "All endpoints defined below must be protected". 
-    # Let's test a protected endpoint like /api/v1/resumes
-    response = client.post("/resumes")
-    assert response.status_code == 401 # FastAPI HTTPBearer returns 401 if missing header by default
+    # Test a protected endpoint
+    response = client.post("/api/v1/resumes")
+    assert response.status_code == 401 
 
 def test_auth_invalid_key(mock_api_key):
-    response = client.post("/resumes", headers={"Authorization": "Bearer invalid-key"})
+    response = client.post("/api/v1/resumes", headers={"Authorization": "Bearer invalid-key"})
     assert response.status_code == 401
 
 def test_auth_valid_key(mock_api_key):
-    # This might fail with 404 if the endpoint is not implemented, but it should pass the auth check
-    response = client.post("/resumes", headers={"Authorization": f"Bearer {mock_api_key}"})
+    # This might return 422 if body is missing, but should NOT be 401/403
+    response = client.post("/api/v1/resumes", headers={"Authorization": f"Bearer {mock_api_key}"})
     assert response.status_code != 401
     assert response.status_code != 403
 
 def test_auth_no_server_config(monkeypatch):
     monkeypatch.delenv("API_KEY", raising=False)
     # Using auth to trigger the check
-    response = client.post("/resumes", headers={"Authorization": "Bearer some-key"})
+    response = client.post("/api/v1/resumes", headers={"Authorization": "Bearer some-key"})
     assert response.status_code == 500
