@@ -4,9 +4,9 @@
 - [x] Task: Implement API Key Authentication Middleware cf8cf0c
     - [x] Write tests for unauthorized and authorized requests
     - [x] Implement ApiKeyHeader security in FastAPI
-- [ ] Task: Set up Supabase Client and Table Models
-    - [ ] Write unit tests for database connection and basic query logic
-    - [ ] Implement Supabase client wrapper and database helper functions
+- [x] Task: Set up Supabase Client and Table Models ac4784e
+    - [x] Write unit tests for database connection and basic query logic
+    - [x] Implement Supabase client wrapper and database helper functions
 - [ ] Task: Conductor - User Manual Verification 'Phase 1: Authentication & Infrastructure' (Protocol in workflow.md)
 
 ## Phase 2: Resume API Implementation (POST)
