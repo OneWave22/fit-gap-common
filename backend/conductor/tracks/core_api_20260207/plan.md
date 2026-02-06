@@ -9,7 +9,7 @@
     - [x] Implement Supabase client wrapper and database helper functions
 - [x] Task: Conductor - User Manual Verification 'Phase 1: Authentication & Infrastructure' (Protocol in workflow.md)
 
-## Phase 2: Resume API Implementation (POST)
+## Phase 2: Resume API Implementation (POST) [checkpoint: 6dc21db]
 - [x] Task: Implement PDF Text Extraction 410bb44
     - [x] Write tests for PDF text extraction (valid and invalid PDFs)
     - [x] Implement extraction logic using PyMuPDF or similar
