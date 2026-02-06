@@ -26,5 +26,5 @@ def test_analyze_endpoint_success():
     assert len(data["recommendations"]) > 0
 
 def test_analyze_endpoint_invalid_input():
-    response = client.post("/api/v1/analyze", json={"invalid": "data"})
+    response = client.post("/api/v1/analyses", json={"invalid": "data"})
     assert response.status_code == 422

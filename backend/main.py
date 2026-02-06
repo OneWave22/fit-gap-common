@@ -10,7 +10,7 @@ app = FastAPI()
 def read_root():
     return {"Hello": "Fit-Gap API"}
 
-@app.post("/api/v1/analyze", response_model=AnalysisOutput)
+@app.post("/api/v1/analyses", response_model=AnalysisOutput)
 def analyze_fit_gap(input_data: AnalysisInput):
     """
     Analyzes the fit-gap between a resume and a job posting.
