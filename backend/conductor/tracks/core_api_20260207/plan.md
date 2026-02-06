@@ -21,7 +21,7 @@
     - [x] Implement endpoint logic including Supabase Storage for store_original
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Resume API Implementation (POST)' (Protocol in workflow.md)
 
-## Phase 3: Job Posting API Implementation (POST)
+## Phase 3: Job Posting API Implementation (POST) [checkpoint: 93e3790]
 - [x] Task: Implement LLM Parsing for Job Postings 7815749
     - [x] Write tests for job posting parsing logic
     - [x] Implement LLM integration for requirement extraction
