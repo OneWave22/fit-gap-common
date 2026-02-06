@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type Role = "JOBSEEKER" | "COMPANY";
 
-export default function OnboardingPage() {
+export const dynamic = "force-dynamic";
+
+function OnboardingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [role, setRole] = useState<Role>("JOBSEEKER");
@@ -16,7 +18,10 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const apiBase = useMemo(() => "http://localhost:8000", []);
+  const apiBase = useMemo(
+    () => process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000",
+    []
+  );
   const authToken = searchParams.get("authToken") || "";
 
   useEffect(() => {
@@ -188,5 +193,13 @@ export default function OnboardingPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen" />}>
+      <OnboardingContent />
+    </Suspense>
   );
 }

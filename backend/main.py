@@ -69,6 +69,16 @@ class NicknameUpdate(BaseModel):
 class ResumeTextUpdate(BaseModel):
     raw_text: str
 
+class AnalysisRequest(BaseModel):
+    resume_id: UUID
+    posting_id: UUID
+
+class AnalysisRead(BaseModel):
+    analysis_id: UUID
+
+class IdTokenRequest(BaseModel):
+    id_token: str
+
 class OnboardingComplete(BaseModel):
     role: Literal["JOBSEEKER", "COMPANY"]
     jobseeker_type: Optional[str] = Field(None, alias="jobseekerType")
@@ -205,9 +215,7 @@ def google_auth_callback(code: str, state: str):
         email=email,
         ttl_minutes=_get_int_env("SIGNUP_TOKEN_TTL_MINUTES", 20),
     )
-    res = RedirectResponse(
-        url=f"{frontend_base}/onboarding?authToken={signup_token}&idToken={id_token}"
-    )
+    res = RedirectResponse(url=f"{frontend_base}/onboarding?authToken={signup_token}")
     return res
 
 @app.post("/onboarding/complete")
@@ -313,40 +321,84 @@ def onboarding_complete(
     return res
 
 @app.post("/api/auth/session")
-def create_session(request: Request):
-    refresh = request.cookies.get("refresh_token")
-    if not refresh:
-        raise FitGapException(
-            "MISSING_TOKEN",
-            f"Missing refresh token. Received cookies: {list(request.cookies.keys())}",
-            401,
-        )
-    payload = decode_token(refresh)
-    if payload.get("typ") != "refresh":
-        raise FitGapException("INVALID_TOKEN_TYPE", "Invalid refresh token", 401)
+def create_session(payload: IdTokenRequest):
+    try:
+        id_payload = verify_google_id_token(payload.id_token)
+    except Exception as e:
+        raise FitGapException("INVALID_ID_TOKEN", str(e), 401)
 
-    user_id = payload.get("sub")
-    if not user_id:
-        raise FitGapException("INVALID_TOKEN", "Invalid refresh token", 401)
+    provider_sub = id_payload.get("sub")
+    email = id_payload.get("email")
+    if not provider_sub:
+        raise FitGapException("INVALID_ID_TOKEN", "Missing sub", 401)
 
     supabase = get_supabase_client()
-    user = supabase.table("users").select("*").eq("id", user_id).single().execute().data
+    oauth = (
+        supabase.table("oauth_accounts")
+        .select("*")
+        .eq("provider", "GOOGLE")
+        .eq("provider_sub", provider_sub)
+        .execute()
+    )
+    oauth_row = oauth.data[0] if oauth.data else None
+    user = None
+    if oauth_row:
+        user = (
+            supabase.table("users")
+            .select("*")
+            .eq("id", oauth_row["user_id"])
+            .single()
+            .execute()
+        ).data
+
     if not user:
-        raise FitGapException("NOT_FOUND", "User not found", 404)
+        signup_token = create_signup_token(
+            provider="GOOGLE",
+            provider_sub=provider_sub,
+            email=email,
+            ttl_minutes=_get_int_env("SIGNUP_TOKEN_TTL_MINUTES", 20),
+        )
+        return success_response(
+            {
+                "requires_onboarding": True,
+                "auth_token": signup_token,
+            }
+        )
+
+    if user.get("status") != "ACTIVE":
+        signup_token = create_signup_token(
+            provider="GOOGLE",
+            provider_sub=provider_sub,
+            email=email,
+            ttl_minutes=_get_int_env("SIGNUP_TOKEN_TTL_MINUTES", 20),
+        )
+        return success_response(
+            {
+                "requires_onboarding": True,
+                "auth_token": signup_token,
+            }
+        )
 
     access = create_access_token(
         user_id=user["id"],
         role=user.get("role"),
         ttl_minutes=_get_int_env("ACCESS_TOKEN_TTL_MINUTES", 15),
     )
-    return success_response(
+    refresh = create_refresh_token(
+        user_id=user["id"], ttl_days=_get_int_env("REFRESH_TOKEN_TTL_DAYS", 14)
+    )
+    res = success_response(
         {
             "access_token": access,
+            "refresh_token": refresh,
             "role": user.get("role"),
             "user_id": user.get("id"),
             "nickname": user.get("nickname"),
+            "requires_onboarding": False,
         }
     )
+    _set_refresh_cookie(res, refresh)
+    return res
 
 @app.post("/api/auth/logout")
 def logout():
@@ -551,8 +603,123 @@ def analyze_fit_gap(input_data: AnalysisInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/analyses")
+def create_analysis(
+    payload: AnalysisRequest, token_data: Dict[str, Any] = Depends(require_access_token)
+):
+    user_id = token_data.get("sub")
+    supabase = get_supabase_client()
+
+    resume = (
+        supabase.table("resumes")
+        .select("*")
+        .eq("id", str(payload.resume_id))
+        .eq("user_id", user_id)
+        .single()
+        .execute()
+    ).data
+    if not resume:
+        raise FitGapException("NOT_FOUND", "Resume not found", 404)
+
+    posting = (
+        supabase.table("job_postings")
+        .select("*")
+        .eq("id", str(payload.posting_id))
+        .single()
+        .execute()
+    ).data
+    if not posting:
+        raise FitGapException("NOT_FOUND", "Posting not found", 404)
+
+    resume_parsed = resume.get("parsed_data") or {}
+    posting_parsed = posting.get("parsed_data") or {}
+
+    resume_skills = resume_parsed.get("skills", [])
+    job_skills = posting_parsed.get("required_skills", [])
+    matched_skills, missing_skills = compare_skills(resume_skills, job_skills)
+    resume_exp = resume_parsed.get("experience", [])
+    job_min_years = posting_parsed.get("min_experience", 0)
+    experience_alignment = check_experience_fit(resume_exp, job_min_years)
+    recommendations = generate_recommendations(missing_skills)
+
+    skill_score = len(matched_skills) / len(job_skills) if job_skills else 1.0
+    exp_weight = {"Exceeds": 1.0, "Matches": 1.0, "Partial": 0.5, "Below": 0.0}.get(
+        experience_alignment, 0.0
+    )
+    overall_score = int(round((skill_score * 0.7 + exp_weight * 0.3) * 100))
+    if overall_score >= 80:
+        signal = "green"
+    elif overall_score >= 40:
+        signal = "yellow"
+    else:
+        signal = "red"
+
+    insert_data = {
+        "resume_id": str(payload.resume_id),
+        "posting_id": str(payload.posting_id),
+        "overall_score": overall_score,
+        "fit_items": matched_skills,
+        "gap_items": missing_skills,
+        "explanation": "Auto-generated analysis",
+        "confidence": "Medium",
+    }
+    res = supabase.table("analyses").insert(insert_data).execute()
+    analysis_id = res.data[0]["id"] if res.data else None
+
+    return success_response(
+        {
+            "analysis_id": analysis_id,
+            "overall_score": overall_score,
+            "signal": signal,
+            "matched_skills": matched_skills,
+            "missing_skills": missing_skills,
+            "recommendations": recommendations,
+            "experience_alignment": experience_alignment,
+        },
+        status_code=201,
+    )
+
+@app.get("/analyses/{analysis_id}")
+def get_analysis(
+    analysis_id: UUID, token_data: Dict[str, Any] = Depends(require_access_token)
+):
+    supabase = get_supabase_client()
+    analysis = (
+        supabase.table("analyses")
+        .select("*")
+        .eq("id", str(analysis_id))
+        .single()
+        .execute()
+    ).data
+    if not analysis:
+        raise FitGapException("NOT_FOUND", "Analysis not found", 404)
+
+    overall_score = analysis.get("overall_score") or 0
+    if overall_score >= 80:
+        signal = "green"
+    elif overall_score >= 40:
+        signal = "yellow"
+    else:
+        signal = "red"
+
+    return success_response(
+        {
+            "analysis_id": analysis.get("id"),
+            "resume_id": analysis.get("resume_id"),
+            "posting_id": analysis.get("posting_id"),
+            "overall_score": overall_score,
+            "signal": signal,
+            "fit_items": analysis.get("fit_items") or [],
+            "gap_items": analysis.get("gap_items") or [],
+            "over_items": analysis.get("over_items") or [],
+            "summary": analysis.get("explanation") or "",
+            "confidence": analysis.get("confidence") or "Medium",
+        }
+    )
+
 # --- Resume API ---
 
+@app.post("/resumes")
 @app.post("/api/v1/resumes")
 async def upload_resume(
     file: UploadFile = File(...),
@@ -609,6 +776,7 @@ async def upload_resume(
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
 
+@app.get("/resumes/{resume_id}")
 @app.get("/api/v1/resumes/{resume_id}")
 def get_resume(resume_id: UUID, token_data: Dict[str, Any] = Depends(require_access_token)):
     user_id = token_data.get("sub")
@@ -631,6 +799,7 @@ def get_resume(resume_id: UUID, token_data: Dict[str, Any] = Depends(require_acc
         "created_at": res.data.get("created_at")
     })
 
+@app.patch("/resumes/{resume_id}")
 @app.patch("/api/v1/resumes/{resume_id}")
 def update_resume(resume_id: UUID, update: ResumeUpdate, token_data: Dict[str, Any] = Depends(require_access_token)):
     user_id = token_data.get("sub")
@@ -659,6 +828,7 @@ def update_resume(resume_id: UUID, update: ResumeUpdate, token_data: Dict[str, A
         "updated_at": res.data[0].get("updated_at")
     })
 
+@app.delete("/resumes/{resume_id}")
 @app.delete("/api/v1/resumes/{resume_id}")
 def delete_resume(resume_id: UUID, token_data: Dict[str, Any] = Depends(require_access_token)):
     user_id = token_data.get("sub")
@@ -670,6 +840,7 @@ def delete_resume(resume_id: UUID, token_data: Dict[str, Any] = Depends(require_
 
 # --- Job Posting API ---
 
+@app.post("/postings", status_code=201)
 @app.post("/api/v1/postings", status_code=201)
 async def create_posting(posting: PostingCreate, token_data: Dict[str, Any] = Depends(require_access_token)):
     user_id = token_data.get("sub")
@@ -713,6 +884,7 @@ async def create_posting(posting: PostingCreate, token_data: Dict[str, Any] = De
             raise e
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/postings/{posting_id}")
 @app.get("/api/v1/postings/{posting_id}")
 def get_posting(posting_id: UUID, token_data: Dict[str, Any] = Depends(require_access_token)):
     user_id = token_data.get("sub")
@@ -736,6 +908,7 @@ def get_posting(posting_id: UUID, token_data: Dict[str, Any] = Depends(require_a
         "created_at": res.data.get("created_at")
     })
 
+@app.patch("/postings/{posting_id}")
 @app.patch("/api/v1/postings/{posting_id}")
 async def update_posting(posting_id: UUID, update: PostingUpdate, token_data: Dict[str, Any] = Depends(require_access_token)):
     user_id = token_data.get("sub")
@@ -781,6 +954,7 @@ async def update_posting(posting_id: UUID, update: PostingUpdate, token_data: Di
         "updated_at": res.data[0].get("updated_at")
     })
 
+@app.delete("/postings/{posting_id}")
 @app.delete("/api/v1/postings/{posting_id}")
 def delete_posting(posting_id: UUID, token_data: Dict[str, Any] = Depends(require_access_token)):
     user_id = token_data.get("sub")

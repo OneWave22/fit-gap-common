@@ -34,7 +34,10 @@ type MyPageData = {
 
 export default function MyPage() {
   const router = useRouter();
-  const apiBase = useMemo(() => "http://localhost:8000", []);
+  const apiBase = useMemo(
+    () => process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000",
+    []
+  );
   const [data, setData] = useState<MyPageData | null>(null);
   const [nickname, setNickname] = useState("");
   const [resumeText, setResumeText] = useState("");
