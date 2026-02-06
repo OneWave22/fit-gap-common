@@ -30,7 +30,7 @@
     - [x] Implement endpoint and Supabase persistence
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Job Posting API Implementation (POST)' (Protocol in workflow.md)
 
-## Phase 4: CRUD Operations & Finalization
+## Phase 4: CRUD Operations & Finalization [checkpoint: 71a371b]
 - [x] Task: Implement GET, PATCH, and DELETE for Resumes f32aaf7
     - [x] Write tests for retrieval, merging updates, and deletion
     - [x] Implement endpoints: GET /resumes/{id}, PATCH /resumes/{id}, DELETE /resumes/{id}
