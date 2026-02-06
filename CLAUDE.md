@@ -41,3 +41,7 @@ Fit-Gap cross-analyzes job postings (JD) vs resumes to classify each requirement
 ## Development Plans
 - `frontend/plan.md` -- phased frontend implementation
 - `backend/plan.md` -- phased backend implementation
+
+## Development Strategy
+1. 프론트엔드 개발할 때 기능별로 브랜치 파서 개발
+2. 백엔드 개발할 때 기능별로 브랜치 파서 개발
