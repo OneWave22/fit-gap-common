@@ -22,9 +22,9 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 2: Resume API Implementation (POST)' (Protocol in workflow.md)
 
 ## Phase 3: Job Posting API Implementation (POST)
-- [ ] Task: Implement LLM Parsing for Job Postings
-    - [ ] Write tests for job posting parsing logic
-    - [ ] Implement LLM integration for requirement extraction
+- [x] Task: Implement LLM Parsing for Job Postings 7815749
+    - [x] Write tests for job posting parsing logic
+    - [x] Implement LLM integration for requirement extraction
 - [ ] Task: Implement POST /postings Endpoint
     - [ ] Write integration tests for job posting creation and parsing
     - [ ] Implement endpoint and Supabase persistence
