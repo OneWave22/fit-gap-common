@@ -19,7 +19,7 @@
 - [x] Task: Implement POST /resumes Endpoint 20166ca
     - [x] Write integration tests for resume upload, parsing, and storage
     - [x] Implement endpoint logic including Supabase Storage for store_original
-- [ ] Task: Conductor - User Manual Verification 'Phase 2: Resume API Implementation (POST)' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Resume API Implementation (POST)' (Protocol in workflow.md)
 
 ## Phase 3: Job Posting API Implementation (POST)
 - [ ] Task: Implement LLM Parsing for Job Postings
