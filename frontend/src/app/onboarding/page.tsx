@@ -1,9 +1,9 @@
-export const dynamic = "force-dynamic";
-
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type Role = "JOBSEEKER" | "COMPANY";
+
+export const dynamic = "force-dynamic";
 
 export default function OnboardingPage() {
   const router = useRouter();
