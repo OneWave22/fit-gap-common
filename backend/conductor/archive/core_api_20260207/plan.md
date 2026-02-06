@@ -1,0 +1,40 @@
+# Implementation Plan: Core Resources API (Resumes & Postings)
+
+## Phase 1: Authentication & Infrastructure [checkpoint: d254c8d]
+- [x] Task: Implement API Key Authentication Middleware cf8cf0c
+    - [x] Write tests for unauthorized and authorized requests
+    - [x] Implement ApiKeyHeader security in FastAPI
+- [x] Task: Set up Supabase Client and Table Models ac4784e
+    - [x] Write unit tests for database connection and basic query logic
+    - [x] Implement Supabase client wrapper and database helper functions
+- [x] Task: Conductor - User Manual Verification 'Phase 1: Authentication & Infrastructure' (Protocol in workflow.md)
+
+## Phase 2: Resume API Implementation (POST) [checkpoint: 6dc21db]
+- [x] Task: Implement PDF Text Extraction 410bb44
+    - [x] Write tests for PDF text extraction (valid and invalid PDFs)
+    - [x] Implement extraction logic using PyMuPDF or similar
+- [x] Task: Implement LLM Parsing for Resumes a36fb0b
+    - [x] Write tests for LLM prompt generation and response parsing
+    - [x] Integrate with OpenAI/Claude API to extract structured resume data
+- [x] Task: Implement POST /resumes Endpoint 20166ca
+    - [x] Write integration tests for resume upload, parsing, and storage
+    - [x] Implement endpoint logic including Supabase Storage for store_original
+- [x] Task: Conductor - User Manual Verification 'Phase 2: Resume API Implementation (POST)' (Protocol in workflow.md)
+
+## Phase 3: Job Posting API Implementation (POST) [checkpoint: 93e3790]
+- [x] Task: Implement LLM Parsing for Job Postings 7815749
+    - [x] Write tests for job posting parsing logic
+    - [x] Implement LLM integration for requirement extraction
+- [x] Task: Implement POST /postings Endpoint eb437e6
+    - [x] Write integration tests for job posting creation and parsing
+    - [x] Implement endpoint and Supabase persistence
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Job Posting API Implementation (POST)' (Protocol in workflow.md)
+
+## Phase 4: CRUD Operations & Finalization [checkpoint: 71a371b]
+- [x] Task: Implement GET, PATCH, and DELETE for Resumes f32aaf7
+    - [x] Write tests for retrieval, merging updates, and deletion
+    - [x] Implement endpoints: GET /resumes/{id}, PATCH /resumes/{id}, DELETE /resumes/{id}
+- [x] Task: Implement GET, PATCH, and DELETE for Postings 9d091b0
+    - [x] Write tests for retrieval, re-parsing on update, and deletion
+    - [x] Implement endpoints: GET /postings/{id}, PATCH /postings/{id}, DELETE /postings/{id}
+- [x] Task: Conductor - User Manual Verification 'Phase 4: CRUD Operations & Finalization' (Protocol in workflow.md)
