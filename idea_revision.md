@@ -438,7 +438,7 @@ Step 4. 점수 산출 + 설명 생성
 
 | 레이어        | 기술                            | 선택 이유                                |
 |------------|-------------------------------|--------------------------------------|
-| **프론트엔드**  | React + Tailwind CSS          | 빠른 프로토타이핑, SSR로 데모 속도 확보             |
+| **프론트엔드**  | Next.js + Tailwind CSS        | 빠른 프로토타이핑, SSR로 데모 속도 확보             |
 | **백엔드**    | FastAPI                       | LLM 연동 라이브러리(LangChain 등) 생태계, 빠른 개발 |
 | **AI/LLM** | OpenAI GPT-4o (또는 Claude)     | Structured Output 지원, 비용 대비 성능       |
 | **임베딩**    | OpenAI text-embedding-3-small | 의미 유사도 비교용                           |
