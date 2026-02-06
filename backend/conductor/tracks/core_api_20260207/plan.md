@@ -37,4 +37,4 @@
 - [x] Task: Implement GET, PATCH, and DELETE for Postings 9d091b0
     - [x] Write tests for retrieval, re-parsing on update, and deletion
     - [x] Implement endpoints: GET /postings/{id}, PATCH /postings/{id}, DELETE /postings/{id}
-- [ ] Task: Conductor - User Manual Verification 'Phase 4: CRUD Operations & Finalization' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 4: CRUD Operations & Finalization' (Protocol in workflow.md)
