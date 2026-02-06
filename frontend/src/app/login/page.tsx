@@ -1,16 +1,20 @@
+import HomePageContent from "../_components/HomePageContent";
+
 export default function LoginPage() {
   return (
-    <div className="min-h-screen px-6 pb-16 pt-24">
-      <div className="mx-auto flex w-full max-w-[960px] flex-col items-center gap-10">
-        <div className="text-center">
-          <p className="text-xs font-semibold text-blue-600">Fit-Gap</p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-900">
-            로그인 / 회원가입
-          </h1>
-        </div>
+    <div className="relative">
+      <HomePageContent />
+      <div className="fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-sm" />
+      <div className="fixed inset-0 z-40 flex items-center justify-center px-6">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-xl">
+          <div className="text-center">
+            <p className="text-xs font-semibold text-blue-600">Fit-Gap</p>
+            <h1 className="mt-2 text-2xl font-bold text-slate-900">
+              로그인 / 회원가입
+            </h1>
+          </div>
 
-        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-          <button className="flex w-full items-center justify-center gap-3 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50">
+          <button className="mt-6 flex w-full items-center justify-center gap-3 rounded-xl bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200 transition hover:bg-slate-50">
             <svg
               aria-hidden
               className="h-5 w-5"
@@ -36,6 +40,13 @@ export default function LoginPage() {
             </svg>
             Google로 로그인
           </button>
+
+          <a
+            href="/"
+            className="mt-5 block text-center text-xs font-semibold text-slate-500 hover:text-slate-700"
+          >
+            닫기
+          </a>
         </div>
       </div>
     </div>
