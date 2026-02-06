@@ -193,7 +193,7 @@ export default function ResumesPage() {
               setAnalyzing(true);
               setError("");
               try {
-                const res = await fetch(`${apiBase}/analyses`, {
+                const res = await fetch(`${apiBase}/api/v1/analyze/session`, {
                   method: "POST",
                   headers: {
                     "Content-Type": "application/json",

@@ -88,7 +88,7 @@ export default function MyPage() {
 
     const fetchSignal = async () => {
       try {
-        const res = await fetch(`${apiBase}/analyses/by-resume/${resumeId}`, {
+        const res = await fetch(`${apiBase}/api/v1/analyze/session/by-resume/${resumeId}`, {
           headers: { Authorization: `Bearer ${accessToken}` },
           credentials: "include",
         });

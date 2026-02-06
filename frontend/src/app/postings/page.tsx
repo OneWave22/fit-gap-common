@@ -101,7 +101,7 @@ export default function PostingsPage() {
       setPostings([newPosting, ...postings]);
       const resumeId = sessionStorage.getItem("resumeId");
       if (resumeId && newPosting.id) {
-        const analysisRes = await fetch(`${apiBase}/analyses`, {
+        const analysisRes = await fetch(`${apiBase}/api/v1/analyze/session`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
