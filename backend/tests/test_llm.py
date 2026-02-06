@@ -23,6 +23,7 @@ def test_parse_llm_resume_response():
     assert parsed.skills[0].name == "Python"
 
 def test_parse_llm_resume_response_with_markdown():
+    # ... (existing java test)
     mock_response = """
     ```json
     {
@@ -36,3 +37,25 @@ def test_parse_llm_resume_response_with_markdown():
     """
     parsed = parse_llm_resume_response(mock_response)
     assert parsed.skills[0].name == "Java"
+
+def test_generate_posting_prompt():
+    from core.llm import generate_posting_prompt
+    raw_text = "Looking for a Python expert with 2 years of SQL."
+    prompt = generate_posting_prompt(raw_text)
+    assert "Python expert" in prompt
+    assert "required_skills" in prompt
+
+def test_parse_llm_posting_response():
+    from core.llm import parse_llm_posting_response
+    from models.posting import PostingParsedData
+    mock_response = """
+    {
+        "required_skills": [{"name": "Python", "detail": "Expert", "source": "Text"}],
+        "preferred_skills": [],
+        "responsibilities": ["Coding"],
+        "culture_keywords": ["Fast"]
+    }
+    """
+    parsed = parse_llm_posting_response(mock_response)
+    assert isinstance(parsed, PostingParsedData)
+    assert parsed.required_skills[0].name == "Python"
