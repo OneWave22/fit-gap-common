@@ -24,6 +24,10 @@ class PostingCreate(BaseModel):
     company_name: Optional[str] = None
     raw_text: str
 
+class PostingUpdate(BaseModel):
+    company_name: Optional[str] = None
+    raw_text: Optional[str] = None
+
 class ResumeUpdate(BaseModel):
     parsed_data: Dict[str, Any]
 
@@ -144,17 +148,12 @@ def get_resume(resume_id: UUID):
 @app.patch("/api/v1/resumes/{resume_id}", dependencies=[Depends(verify_api_key)])
 def update_resume(resume_id: UUID, update: ResumeUpdate):
     supabase = get_supabase_client()
-    
-    # 1. Fetch current
     current = supabase.table("resumes").select("parsed_data").eq("id", str(resume_id)).single().execute()
     if not current.data:
         raise FitGapException("NOT_FOUND", "Resume not found", 404)
         
-    # 2. Merge parsed_data (top-level fields)
     new_parsed_data = current.data["parsed_data"].copy()
     new_parsed_data.update(update.parsed_data)
-    
-    # 3. Update
     res = supabase.table("resumes").update({"parsed_data": new_parsed_data}).eq("id", str(resume_id)).execute()
     
     if not res.data:
@@ -170,12 +169,8 @@ def update_resume(resume_id: UUID, update: ResumeUpdate):
 def delete_resume(resume_id: UUID):
     supabase = get_supabase_client()
     res = supabase.table("resumes").delete().eq("id", str(resume_id)).execute()
-    
     if not res.data:
         raise FitGapException("NOT_FOUND", "Resume not found or already deleted", 404)
-        
-    # Optional: Delete from storage if existed (omitting complex storage check for MVP)
-    
     return success_response({"message": "서류가 삭제되었습니다."})
 
 # --- Job Posting API ---
@@ -209,3 +204,63 @@ async def create_posting(posting: PostingCreate):
         if isinstance(e, FitGapException):
             raise e
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/postings/{posting_id}", dependencies=[Depends(verify_api_key)])
+def get_posting(posting_id: UUID):
+    supabase = get_supabase_client()
+    res = supabase.table("job_postings").select("*").eq("id", str(posting_id)).single().execute()
+    
+    if not res.data:
+        raise FitGapException("NOT_FOUND", "Job posting not found", 404)
+        
+    return success_response({
+        "posting_id": res.data["id"],
+        "company_name": res.data.get("company_name"),
+        "parsed_data": res.data["parsed_data"],
+        "created_at": res.data.get("created_at")
+    })
+
+@app.patch("/api/v1/postings/{posting_id}", dependencies=[Depends(verify_api_key)])
+async def update_posting(posting_id: UUID, update: PostingUpdate):
+    supabase = get_supabase_client()
+    
+    # 1. Fetch current
+    current = supabase.table("job_postings").select("*").eq("id", str(posting_id)).single().execute()
+    if not current.data:
+        raise FitGapException("NOT_FOUND", "Job posting not found", 404)
+        
+    update_data = {}
+    if update.company_name:
+        update_data["company_name"] = update.company_name
+        
+    if update.raw_text:
+        if len(update.raw_text) < 100:
+            raise FitGapException("TEXT_TOO_SHORT", "Job posting text must be at least 100 characters", 400)
+        update_data["raw_text"] = update.raw_text
+        # Re-parse
+        parsed_data = await parse_posting_with_llm(update.raw_text)
+        update_data["parsed_data"] = parsed_data.dict()
+        
+    if not update_data:
+        raise FitGapException("INVALID_REQUEST", "No update fields provided", 400)
+        
+    # 2. Update
+    res = supabase.table("job_postings").update(update_data).eq("id", str(posting_id)).execute()
+    
+    if not res.data:
+        raise FitGapException("INTERNAL_ERROR", "Failed to update posting", 500)
+        
+    return success_response({
+        "posting_id": res.data[0]["id"],
+        "company_name": res.data[0].get("company_name"),
+        "parsed_data": res.data[0]["parsed_data"],
+        "updated_at": res.data[0].get("updated_at")
+    })
+
+@app.delete("/api/v1/postings/{posting_id}", dependencies=[Depends(verify_api_key)])
+def delete_posting(posting_id: UUID):
+    supabase = get_supabase_client()
+    res = supabase.table("job_postings").delete().eq("id", str(posting_id)).execute()
+    if not res.data:
+        raise FitGapException("NOT_FOUND", "Job posting not found or already deleted", 404)
+    return success_response({"message": "공고가 삭제되었습니다."})
