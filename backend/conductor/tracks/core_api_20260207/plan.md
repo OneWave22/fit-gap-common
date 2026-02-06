@@ -31,9 +31,9 @@
 - [x] Task: Conductor - User Manual Verification 'Phase 3: Job Posting API Implementation (POST)' (Protocol in workflow.md)
 
 ## Phase 4: CRUD Operations & Finalization
-- [ ] Task: Implement GET, PATCH, and DELETE for Resumes
-    - [ ] Write tests for retrieval, merging updates, and deletion
-    - [ ] Implement endpoints: GET /resumes/{id}, PATCH /resumes/{id}, DELETE /resumes/{id}
+- [x] Task: Implement GET, PATCH, and DELETE for Resumes f32aaf7
+    - [x] Write tests for retrieval, merging updates, and deletion
+    - [x] Implement endpoints: GET /resumes/{id}, PATCH /resumes/{id}, DELETE /resumes/{id}
 - [ ] Task: Implement GET, PATCH, and DELETE for Postings
     - [ ] Write tests for retrieval, re-parsing on update, and deletion
     - [ ] Implement endpoints: GET /postings/{id}, PATCH /postings/{id}, DELETE /postings/{id}
