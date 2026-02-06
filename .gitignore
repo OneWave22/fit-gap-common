@@ -1,6 +1,32 @@
+# === Claude / AI Tool Configs ===
+.mcp.json
+
+# === Environment & Secrets ===
 .env
+.env.*
+!.env.example
 backend/.env
-venv/
-__pycache__/
+
+# === OS ===
 .DS_Store
+Thumbs.db
+
+# === Python (backend) ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+.pytest_cache/
+
+# === IDE ===
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# === Node (root-level) ===
 node_modules/
