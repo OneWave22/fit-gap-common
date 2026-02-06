@@ -1,0 +1,8 @@
+{
+    "description":  "Implement the core Gap Analysis engine to compare parsed resumes against job requirements and generate recommendations.",
+    "track_id":  "gap_analysis_20260207",
+    "type":  "feature",
+    "created_at":  "2026-02-07T00:55:20Z",
+    "status":  "new",
+    "updated_at":  "2026-02-07T00:55:20Z"
+}
