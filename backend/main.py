@@ -195,7 +195,7 @@ def google_auth_callback(code: str, state: str):
             }
         ).execute()
 
-    frontend_base = os.getenv("FRONTEND_BASE_URL", "https://fit-gap-backend.fly.dev")
+    frontend_base = os.getenv("FRONTEND_BASE_URL", "https://fit-gap-common.vercel.app")
     if user.get("status") == "ACTIVE":
         access = create_access_token(
             user_id=user["id"],
