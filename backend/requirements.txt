@@ -6,3 +6,8 @@ PyJWT
 requests
 google-generativeai
 google-genai
+PyMuPDF
+python-multipart
+pytest
+httpx
+pytest-mock
