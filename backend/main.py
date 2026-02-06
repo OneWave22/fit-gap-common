@@ -1,7 +1,19 @@
 from fastapi import FastAPI, Depends, Security, HTTPException, UploadFile, File, Form, status, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 from core.auth import verify_api_key
+from core.security import (
+    create_access_token,
+    create_refresh_token,
+    create_signup_token,
+    create_state_token,
+    decode_token,
+    get_cookie_settings,
+    require_access_token,
+    require_signup_token,
+)
+from core.google_oauth import build_google_auth_url, exchange_code_for_tokens, verify_google_id_token
+from integrations.biz_verify import verify_biz_registration
 from models.analysis import AnalysisInput, AnalysisOutput
 from models.resume import ResumeParsedData
 from models.posting import PostingParsedData
@@ -12,12 +24,22 @@ from core.pdf import extract_text_from_pdf
 from core.llm import parse_resume_with_llm, parse_posting_with_llm
 from core.database import get_supabase_client
 import os
+from datetime import datetime, timezone
 import shutil
 import tempfile
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Literal
 from uuid import UUID
 
 app = FastAPI()
+
+def _get_int_env(name: str, default: int) -> int:
+    val = os.getenv(name)
+    if not val:
+        return default
+    try:
+        return int(val)
+    except ValueError:
+        return default
 
 # --- Schemas for Requests ---
 class PostingCreate(BaseModel):
@@ -30,6 +52,12 @@ class PostingUpdate(BaseModel):
 
 class ResumeUpdate(BaseModel):
     parsed_data: Dict[str, Any]
+
+class OnboardingComplete(BaseModel):
+    role: Literal["JOBSEEKER", "COMPANY"]
+    jobseeker_type: Optional[str] = None
+    company_name: Optional[str] = None
+    biz_reg_no: Optional[str] = None
 
 # Custom exception for our standardized error format
 class FitGapException(Exception):
@@ -58,9 +86,213 @@ def success_response(data: dict, status_code: int = 200):
         content={"success": True, "data": data}
     )
 
+def _set_auth_cookies(response, access_token: str, refresh_token: str):
+    cookie_opts = get_cookie_settings()
+    response.set_cookie("access_token", access_token, httponly=True, **cookie_opts)
+    response.set_cookie("refresh_token", refresh_token, httponly=True, **cookie_opts)
+
+def _set_signup_cookie(response, signup_token: str):
+    cookie_opts = get_cookie_settings()
+    response.set_cookie("signup_token", signup_token, httponly=True, **cookie_opts)
+
 @app.get("/")
 def read_root():
     return {"Hello": "Fit-Gap API"}
+
+# --- Auth API ---
+
+@app.get("/auth/google/start")
+def google_auth_start():
+    state = create_state_token(ttl_minutes=10)
+    url = build_google_auth_url(state)
+    return RedirectResponse(url=url)
+
+@app.get("/api/auth/callback/google")
+def google_auth_callback(code: str, state: str):
+    payload = decode_token(state)
+    if payload.get("typ") != "state":
+        raise FitGapException("INVALID_STATE", "Invalid OAuth state", 400)
+
+    try:
+        token_res = exchange_code_for_tokens(code)
+        id_token = token_res.get("id_token")
+        if not id_token:
+            raise FitGapException("GOOGLE_TOKEN_EXCHANGE_FAILED", "Missing id_token", 400)
+        id_payload = verify_google_id_token(id_token)
+    except FitGapException:
+        raise
+    except Exception:
+        raise FitGapException("GOOGLE_TOKEN_EXCHANGE_FAILED", "Google token exchange failed", 400)
+
+    provider_sub = id_payload.get("sub")
+    email = id_payload.get("email")
+    if not provider_sub:
+        raise FitGapException("INVALID_ID_TOKEN", "Invalid id_token payload", 400)
+
+    supabase = get_supabase_client()
+    oauth = (
+        supabase.table("oauth_accounts")
+        .select("*")
+        .eq("provider", "GOOGLE")
+        .eq("provider_sub", provider_sub)
+        .single()
+        .execute()
+    )
+
+    user = None
+    if oauth.data:
+        user = (
+            supabase.table("users").select("*").eq("id", oauth.data["user_id"]).single().execute()
+        ).data
+    else:
+        nickname = (email.split("@")[0] if email else "user")
+        user_res = (
+            supabase.table("users")
+            .insert({"email": email, "nickname": nickname, "status": "PENDING_ONBOARDING"})
+            .execute()
+        )
+        if not user_res.data:
+            raise FitGapException("INTERNAL_ERROR", "Failed to create user", 500)
+        user = user_res.data[0]
+        supabase.table("oauth_accounts").insert(
+            {
+                "user_id": user["id"],
+                "provider": "GOOGLE",
+                "provider_sub": provider_sub,
+                "email": email,
+            }
+        ).execute()
+
+    frontend_base = os.getenv("FRONTEND_BASE_URL", "http://localhost:3000")
+    if user.get("status") == "ACTIVE":
+        access = create_access_token(
+            user_id=user["id"],
+            role=user.get("role"),
+            ttl_minutes=_get_int_env("ACCESS_TOKEN_TTL_MINUTES", 15),
+        )
+        refresh = create_refresh_token(
+            user_id=user["id"], ttl_days=_get_int_env("REFRESH_TOKEN_TTL_DAYS", 14)
+        )
+        res = RedirectResponse(url=frontend_base)
+        _set_auth_cookies(res, access, refresh)
+        return res
+
+    signup_token = create_signup_token(
+        provider="GOOGLE",
+        provider_sub=provider_sub,
+        email=email,
+        ttl_minutes=_get_int_env("SIGNUP_TOKEN_TTL_MINUTES", 20),
+    )
+    res = RedirectResponse(url=f"{frontend_base}/onboarding")
+    _set_signup_cookie(res, signup_token)
+    return res
+
+@app.post("/onboarding/complete")
+def onboarding_complete(
+    payload: OnboardingComplete,
+    token_data: Dict[str, Any] = Depends(require_signup_token),
+):
+    provider_sub = token_data.get("sub")
+    email = token_data.get("email")
+    if not provider_sub:
+        raise FitGapException("ONBOARDING_TOKEN_INVALID", "Invalid signup token", 401)
+
+    supabase = get_supabase_client()
+    oauth = (
+        supabase.table("oauth_accounts")
+        .select("*")
+        .eq("provider", "GOOGLE")
+        .eq("provider_sub", provider_sub)
+        .single()
+        .execute()
+    )
+
+    if not oauth.data:
+        nickname = (email.split("@")[0] if email else "user")
+        user_res = (
+            supabase.table("users")
+            .insert({"email": email, "nickname": nickname, "status": "PENDING_ONBOARDING"})
+            .execute()
+        )
+        if not user_res.data:
+            raise FitGapException("INTERNAL_ERROR", "Failed to create user", 500)
+        user = user_res.data[0]
+        supabase.table("oauth_accounts").insert(
+            {
+                "user_id": user["id"],
+                "provider": "GOOGLE",
+                "provider_sub": provider_sub,
+                "email": email,
+            }
+        ).execute()
+    else:
+        user = (
+            supabase.table("users")
+            .select("*")
+            .eq("id", oauth.data["user_id"])
+            .single()
+            .execute()
+        ).data
+
+    if user.get("status") == "ACTIVE":
+        raise FitGapException("ALREADY_ONBOARDED", "User already onboarded", 400)
+
+    if payload.role == "JOBSEEKER":
+        if not payload.jobseeker_type:
+            raise FitGapException("INVALID_REQUEST", "jobseeker_type is required", 400)
+        supabase.table("jobseeker_profiles").upsert(
+            {"user_id": user["id"], "type": payload.jobseeker_type},
+            on_conflict="user_id",
+        ).execute()
+    else:
+        if not payload.company_name or not payload.biz_reg_no:
+            raise FitGapException("INVALID_REQUEST", "company_name and biz_reg_no are required", 400)
+        if not verify_biz_registration(payload.biz_reg_no):
+            raise FitGapException("BIZ_VERIFY_FAILED", "사업자 등록번호 인증에 실패했습니다.", 422)
+        supabase.table("company_profiles").upsert(
+            {
+                "user_id": user["id"],
+                "company_name": payload.company_name,
+                "biz_reg_no": payload.biz_reg_no,
+                "biz_verified": True,
+                "biz_verified_at": datetime.now(timezone.utc).isoformat(),
+            },
+            on_conflict="user_id",
+        ).execute()
+
+    supabase.table("users").update(
+        {"role": payload.role, "status": "ACTIVE"}
+    ).eq("id", user["id"]).execute()
+
+    access = create_access_token(
+        user_id=user["id"],
+        role=payload.role,
+        ttl_minutes=_get_int_env("ACCESS_TOKEN_TTL_MINUTES", 15),
+    )
+    refresh = create_refresh_token(
+        user_id=user["id"], ttl_days=_get_int_env("REFRESH_TOKEN_TTL_DAYS", 14)
+    )
+
+    res = success_response({"user_id": user["id"], "role": payload.role})
+    _set_auth_cookies(res, access, refresh)
+    return res
+
+@app.get("/me")
+def get_me(token_data: Dict[str, Any] = Depends(require_access_token)):
+    user_id = token_data.get("sub")
+    supabase = get_supabase_client()
+    user = supabase.table("users").select("*").eq("id", user_id).single().execute().data
+    if not user:
+        raise FitGapException("NOT_FOUND", "User not found", 404)
+    return success_response(
+        {
+            "id": user["id"],
+            "email": user.get("email"),
+            "nickname": user.get("nickname"),
+            "role": user.get("role"),
+            "status": user.get("status"),
+        }
+    )
 
 @app.post("/api/v1/analyze", dependencies=[Depends(verify_api_key)])
 def analyze_fit_gap(input_data: AnalysisInput):
