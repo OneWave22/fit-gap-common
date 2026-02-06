@@ -17,7 +17,7 @@ export default function LoginCallbackPage() {
             sessionStorage.setItem("idToken", idToken);
           }
         }
-        const res = await fetch("/api/auth/session", {
+        const res = await fetch("http://localhost:8000/api/auth/session", {
           method: "POST",
           credentials: "include",
         });

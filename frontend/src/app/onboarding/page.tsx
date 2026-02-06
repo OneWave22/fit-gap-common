@@ -16,7 +16,7 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const apiBase = useMemo(() => "", []);
+  const apiBase = useMemo(() => "http://localhost:8000", []);
   const authToken = searchParams.get("authToken") || "";
 
   useEffect(() => {
