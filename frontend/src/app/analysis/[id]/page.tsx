@@ -43,7 +43,7 @@ export default function AnalysisPage() {
     }
     const fetchData = async () => {
       try {
-        const res = await fetch(`${apiBase}/api/v1/analyze/session/${params.id}`, {
+        const res = await fetch(`${apiBase}/api/v1/analyze`, {
           headers: { Authorization: `Bearer ${accessToken}` },
           credentials: "include",
         });
