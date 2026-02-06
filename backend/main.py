@@ -14,7 +14,8 @@ from core.database import get_supabase_client
 import os
 import shutil
 import tempfile
-from typing import Optional
+from typing import Optional, Dict, Any
+from uuid import UUID
 
 app = FastAPI()
 
@@ -22,6 +23,9 @@ app = FastAPI()
 class PostingCreate(BaseModel):
     company_name: Optional[str] = None
     raw_text: str
+
+class ResumeUpdate(BaseModel):
+    parsed_data: Dict[str, Any]
 
 # Custom exception for our standardized error format
 class FitGapException(Exception):
@@ -45,13 +49,16 @@ async def fitgap_exception_handler(request: Request, exc: FitGapException):
 
 # Standard success response wrapper
 def success_response(data: dict, status_code: int = 200):
-    return {"success": True, "data": data}
+    return JSONResponse(
+        status_code=status_code,
+        content={"success": True, "data": data}
+    )
 
 @app.get("/")
 def read_root():
     return {"Hello": "Fit-Gap API"}
 
-@app.post("/api/v1/analyze", response_model=None, dependencies=[Depends(verify_api_key)])
+@app.post("/api/v1/analyze", dependencies=[Depends(verify_api_key)])
 def analyze_fit_gap(input_data: AnalysisInput):
     try:
         resume_skills = input_data.resume_data.get("skills", [])
@@ -75,7 +82,9 @@ def analyze_fit_gap(input_data: AnalysisInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/v1/resumes", status_code=201, dependencies=[Depends(verify_api_key)])
+# --- Resume API ---
+
+@app.post("/api/v1/resumes", dependencies=[Depends(verify_api_key)])
 async def upload_resume(
     file: UploadFile = File(...),
     store_original: bool = Form(False)
@@ -118,19 +127,66 @@ async def upload_resume(
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
 
+@app.get("/api/v1/resumes/{resume_id}", dependencies=[Depends(verify_api_key)])
+def get_resume(resume_id: UUID):
+    supabase = get_supabase_client()
+    res = supabase.table("resumes").select("*").eq("id", str(resume_id)).single().execute()
+    
+    if not res.data:
+        raise FitGapException("NOT_FOUND", "Resume not found", 404)
+        
+    return success_response({
+        "resume_id": res.data["id"],
+        "parsed_data": res.data["parsed_data"],
+        "created_at": res.data.get("created_at")
+    })
+
+@app.patch("/api/v1/resumes/{resume_id}", dependencies=[Depends(verify_api_key)])
+def update_resume(resume_id: UUID, update: ResumeUpdate):
+    supabase = get_supabase_client()
+    
+    # 1. Fetch current
+    current = supabase.table("resumes").select("parsed_data").eq("id", str(resume_id)).single().execute()
+    if not current.data:
+        raise FitGapException("NOT_FOUND", "Resume not found", 404)
+        
+    # 2. Merge parsed_data (top-level fields)
+    new_parsed_data = current.data["parsed_data"].copy()
+    new_parsed_data.update(update.parsed_data)
+    
+    # 3. Update
+    res = supabase.table("resumes").update({"parsed_data": new_parsed_data}).eq("id", str(resume_id)).execute()
+    
+    if not res.data:
+        raise FitGapException("INTERNAL_ERROR", "Failed to update resume", 500)
+        
+    return success_response({
+        "resume_id": res.data[0]["id"],
+        "parsed_data": res.data[0]["parsed_data"],
+        "updated_at": res.data[0].get("updated_at")
+    })
+
+@app.delete("/api/v1/resumes/{resume_id}", dependencies=[Depends(verify_api_key)])
+def delete_resume(resume_id: UUID):
+    supabase = get_supabase_client()
+    res = supabase.table("resumes").delete().eq("id", str(resume_id)).execute()
+    
+    if not res.data:
+        raise FitGapException("NOT_FOUND", "Resume not found or already deleted", 404)
+        
+    # Optional: Delete from storage if existed (omitting complex storage check for MVP)
+    
+    return success_response({"message": "서류가 삭제되었습니다."})
+
+# --- Job Posting API ---
+
 @app.post("/api/v1/postings", status_code=201, dependencies=[Depends(verify_api_key)])
 async def create_posting(posting: PostingCreate):
-    """
-    Creates a job posting and parses it using LLM.
-    """
     if len(posting.raw_text) < 100:
         raise FitGapException("TEXT_TOO_SHORT", "Job posting text must be at least 100 characters", 400)
         
     try:
-        # 1. LLM Parse
         parsed_data = await parse_posting_with_llm(posting.raw_text)
-        
-        # 2. Save to Supabase
         supabase = get_supabase_client()
         db_data = {
             "company_name": posting.company_name,

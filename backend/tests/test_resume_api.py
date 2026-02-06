@@ -49,3 +49,39 @@ def test_post_resume_invalid_file_type(mock_auth):
     assert response.status_code == 400
     assert response.json()["success"] == False
     assert response.json()["error"]["code"] == "UNSUPPORTED_FILE_TYPE"
+
+def test_get_resume_success(mocker, mock_auth):
+    resume_id = str(uuid4())
+    mock_db_instance = mocker.MagicMock()
+    mocker.patch("main.get_supabase_client", return_value=mock_db_instance)
+    mock_db_instance.table().select().eq().single().execute.return_value = mocker.MagicMock(data={"id": resume_id, "parsed_data": {}})
+    
+    response = client.get(f"/api/v1/resumes/{resume_id}", headers=mock_auth)
+    assert response.status_code == 200
+    assert response.json()["data"]["resume_id"] == resume_id
+
+def test_patch_resume_success(mocker, mock_auth):
+    resume_id = str(uuid4())
+    mock_db_instance = mocker.MagicMock()
+    mocker.patch("main.get_supabase_client", return_value=mock_db_instance)
+    
+    # Mock current data
+    mock_db_instance.table().select().eq().single().execute.return_value = mocker.MagicMock(data={"id": resume_id, "parsed_data": {"old": "data"}})
+    # Mock update
+    mock_db_instance.table().update().eq().execute.return_value = mocker.MagicMock(data=[{"id": resume_id, "parsed_data": {"old": "data", "new": "data"}}])
+    
+    payload = {"parsed_data": {"new": "data"}}
+    response = client.patch(f"/api/v1/resumes/{resume_id}", json=payload, headers=mock_auth)
+    
+    assert response.status_code == 200
+    assert response.json()["data"]["parsed_data"]["new"] == "data"
+
+def test_delete_resume_success(mocker, mock_auth):
+    resume_id = str(uuid4())
+    mock_db_instance = mocker.MagicMock()
+    mocker.patch("main.get_supabase_client", return_value=mock_db_instance)
+    mock_db_instance.table().delete().eq().execute.return_value = mocker.MagicMock(data=[{"id": resume_id}])
+    
+    response = client.delete(f"/api/v1/resumes/{resume_id}", headers=mock_auth)
+    assert response.status_code == 200
+    assert "삭제되었습니다" in response.json()["data"]["message"]
