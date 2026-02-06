@@ -1,9 +1,9 @@
 # Implementation Plan: Gap Analysis Engine
 
 ## Phase 1: Data Models and Basic Scoring
-- [ ] Task: Define Pydantic models for Analysis Input and Output
-    - [ ] Write tests for model validation
-    - [ ] Implement models in models/analysis.py
+- [x] Task: Define Pydantic models for Analysis Input and Output 8f05db9
+    - [x] Write tests for model validation
+    - [x] Implement models in models/analysis.py
 - [ ] Task: Implement basic Skill Matching logic
     - [ ] Write tests for exact skill matching
     - [ ] Implement compare_skills function
