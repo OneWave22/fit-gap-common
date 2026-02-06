@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import AppHeader from "./_components/AppHeader";
 
 export const metadata: Metadata = {
   title: "Fit-Gap — AI 채용 분석 플랫폼",
@@ -14,7 +15,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        <AppHeader />
+        {children}
+      </body>
     </html>
   );
 }
