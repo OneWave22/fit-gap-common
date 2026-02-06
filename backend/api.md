@@ -1,5 +1,4 @@
 # API 명세서: 핏갭 (Fit-Gap)
-
 버전: 1.0
 작성일: 2026-02-06
 Base URL: `https://api.fitgap.kr/v1`
