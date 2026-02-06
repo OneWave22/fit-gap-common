@@ -48,8 +48,8 @@ async def parse_resume_with_llm(raw_text: str) -> ResumeParsedData:
         model="gemini-3-flash-preview",
         contents=prompt,
         config={
-            'response_mime_type': 'application/json',
-        }
+            "response_mime_type": "application/json",
+        },
     )
     
     return parse_llm_resume_response(response.text)
@@ -91,8 +91,8 @@ async def parse_posting_with_llm(raw_text: str) -> PostingParsedData:
         model="gemini-3-flash-preview",
         contents=prompt,
         config={
-            'response_mime_type': 'application/json',
-        }
+            "response_mime_type": "application/json",
+        },
     )
     
     return parse_llm_posting_response(response.text)

@@ -46,7 +46,8 @@ def exchange_code_for_tokens(code: str) -> Dict[str, Any]:
         "grant_type": "authorization_code",
     }
     res = requests.post(GOOGLE_TOKEN_URL, data=data, timeout=10)
-    res.raise_for_status()
+    if res.status_code != 200:
+        raise RuntimeError(f"Token exchange failed: {res.status_code} {res.text}")
     return res.json()
 
 

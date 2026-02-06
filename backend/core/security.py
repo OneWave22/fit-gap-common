@@ -3,13 +3,13 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 
 import jwt
-from fastapi import HTTPException, Security, status
+from fastapi import HTTPException, Security, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 
 load_dotenv()
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)
 
 
 def _get_env(name: str, default: Optional[str] = None) -> str:
@@ -68,19 +68,31 @@ def decode_token(token: str) -> Dict[str, Any]:
         raise HTTPException(status_code=401, detail="INVALID_TOKEN")
 
 
+def _get_token(
+    auth: Optional[HTTPAuthorizationCredentials],
+) -> str:
+    if auth and auth.credentials:
+        return auth.credentials
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="MISSING_TOKEN")
+
+
 def require_access_token(
-    auth: HTTPAuthorizationCredentials = Security(security),
+    request: Request,
+    auth: Optional[HTTPAuthorizationCredentials] = Security(security),
 ) -> Dict[str, Any]:
-    payload = decode_token(auth.credentials)
+    token = _get_token(auth)
+    payload = decode_token(token)
     if payload.get("typ") != "access":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="INVALID_TOKEN_TYPE")
     return payload
 
 
 def require_signup_token(
-    auth: HTTPAuthorizationCredentials = Security(security),
+    request: Request,
+    auth: Optional[HTTPAuthorizationCredentials] = Security(security),
 ) -> Dict[str, Any]:
-    payload = decode_token(auth.credentials)
+    token = _get_token(auth)
+    payload = decode_token(token)
     if payload.get("typ") != "signup":
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="INVALID_TOKEN_TYPE")
     return payload
@@ -91,4 +103,5 @@ def get_cookie_settings() -> Dict[str, Any]:
         "domain": os.getenv("COOKIE_DOMAIN") or None,
         "secure": os.getenv("COOKIE_SECURE", "false").lower() == "true",
         "samesite": os.getenv("COOKIE_SAMESITE", "lax"),
+        "path": "/",
     }
