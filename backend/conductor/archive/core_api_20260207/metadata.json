@@ -1,0 +1,8 @@
+{
+    "description":  "Implement all endpoints for Resumes and Job Postings as described in api.md, including authentication, PDF extraction, LLM parsing, and Supabase integration.",
+    "track_id":  "core_api_20260207",
+    "type":  "feature",
+    "created_at":  "2026-02-07T01:47:34Z",
+    "status":  "new",
+    "updated_at":  "2026-02-07T01:47:34Z"
+}
