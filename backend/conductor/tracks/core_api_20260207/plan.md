@@ -28,7 +28,7 @@
 - [x] Task: Implement POST /postings Endpoint eb437e6
     - [x] Write integration tests for job posting creation and parsing
     - [x] Implement endpoint and Supabase persistence
-- [ ] Task: Conductor - User Manual Verification 'Phase 3: Job Posting API Implementation (POST)' (Protocol in workflow.md)
+- [x] Task: Conductor - User Manual Verification 'Phase 3: Job Posting API Implementation (POST)' (Protocol in workflow.md)
 
 ## Phase 4: CRUD Operations & Finalization
 - [ ] Task: Implement GET, PATCH, and DELETE for Resumes
