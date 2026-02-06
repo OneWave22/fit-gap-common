@@ -29,7 +29,9 @@ export default function AppHeader() {
 
   const handleLogout = async () => {
     try {
-      await fetch("http://localhost:8000/api/auth/logout", {
+      const apiBase =
+        process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+      await fetch(`${apiBase}/api/auth/logout`, {
         method: "POST",
         credentials: "include",
       });

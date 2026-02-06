@@ -1,4 +1,25 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+type UserInfo = {
+  role?: "JOBSEEKER" | "COMPANY";
+};
+
 export default function HomePageContent() {
+  const [role, setRole] = useState<UserInfo["role"]>(undefined);
+
+  useEffect(() => {
+    const raw = localStorage.getItem("user");
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        setRole(parsed?.role);
+      } catch {
+        setRole(undefined);
+      }
+    }
+  }, []);
   return (
     <div className="min-h-screen text-slate-900">
       <main className="mx-auto flex w-full max-w-[1200px] flex-col gap-24 px-6 pb-20 pt-36">
@@ -17,18 +38,28 @@ export default function HomePageContent() {
               부족한 역량과 합격 가능성을 신호등으로 확인하세요.
             </p>
             <div className="flex flex-col gap-3 sm:flex-row">
+              {role === "COMPANY" ? (
+                <a
+                  href="/postings"
+                  className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold !text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700"
+                >
+                  기업 시작하기
+                  <span aria-hidden>→</span>
+                </a>
+              ) : (
+                <a
+                  href="/resumes"
+                  className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold !text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700"
+                >
+                  구직자 시작하기
+                  <span aria-hidden>→</span>
+                </a>
+              )}
               <a
-                href="/resumes"
-                className="flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-200 transition hover:bg-blue-700"
-              >
-                구직자 시작하기
-                <span aria-hidden>→</span>
-              </a>
-              <a
-                href="/screening"
+                href="/postings"
                 className="flex items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
               >
-                기업 HR 도입문의
+                기업 시작하기
               </a>
             </div>
           </div>
