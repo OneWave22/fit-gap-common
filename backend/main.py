@@ -70,7 +70,7 @@ class ResumeTextUpdate(BaseModel):
     raw_text: str
 
 class AnalysisRequest(BaseModel):
-    resume_id: UUID
+    resume_id: Optional[UUID] = None
     posting_id: Optional[UUID] = None
 
 class AnalysisRead(BaseModel):
@@ -603,6 +603,195 @@ def analyze_fit_gap(input_data: AnalysisInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/v1/analyze/session")
+def create_analysis_session(
+    payload: AnalysisRequest, token_data: Dict[str, Any] = Depends(require_access_token)
+):
+    user_id = token_data.get("sub")
+    supabase = get_supabase_client()
+
+    resume = None
+    if payload.resume_id:
+        resume = (
+            supabase.table("resumes")
+            .select("*")
+            .eq("id", str(payload.resume_id))
+            .eq("user_id", user_id)
+            .single()
+            .execute()
+        ).data
+    else:
+        resume_res = (
+            supabase.table("resumes")
+            .select("*")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        resume = resume_res.data[0] if resume_res.data else None
+    if not resume:
+        raise FitGapException("NOT_FOUND", "Resume not found", 404)
+
+    posting = None
+    if payload.posting_id:
+        posting = (
+            supabase.table("job_postings")
+            .select("*")
+            .eq("id", str(payload.posting_id))
+            .single()
+            .execute()
+        ).data
+        if not posting:
+            raise FitGapException("NOT_FOUND", "Posting not found", 404)
+
+    resume_parsed = resume.get("parsed_data") or {}
+    posting_parsed = posting.get("parsed_data") or {} if posting else {}
+
+    resume_skills = resume_parsed.get("skills", [])
+    job_skills = posting_parsed.get("required_skills", [])
+    matched_skills, missing_skills = compare_skills(resume_skills, job_skills)
+    resume_exp = resume_parsed.get("experience", [])
+    job_min_years = posting_parsed.get("min_experience", 0)
+    experience_alignment = check_experience_fit(resume_exp, job_min_years)
+    recommendations = generate_recommendations(missing_skills)
+
+    if posting:
+        skill_score = len(matched_skills) / len(job_skills) if job_skills else 1.0
+        exp_weight = {"Exceeds": 1.0, "Matches": 1.0, "Partial": 0.5, "Below": 0.0}.get(
+            experience_alignment, 0.0
+        )
+        overall_score = int(round((skill_score * 0.7 + exp_weight * 0.3) * 100))
+    else:
+        raw_text = resume.get("raw_text") or ""
+        score = 40
+        if len(resume_skills) >= 5:
+            score += 20
+        if resume_exp:
+            score += 20
+        if len(raw_text) >= 500:
+            score += 20
+        overall_score = min(100, score)
+
+    if overall_score >= 80:
+        signal = "green"
+    elif overall_score >= 40:
+        signal = "yellow"
+    else:
+        signal = "red"
+
+    insert_data = {
+        "resume_id": resume.get("id"),
+        "posting_id": str(payload.posting_id) if payload.posting_id else None,
+        "overall_score": overall_score,
+        "fit_items": matched_skills,
+        "gap_items": missing_skills,
+        "explanation": "Auto-generated analysis",
+        "confidence": "Medium",
+    }
+    res = supabase.table("analyses").insert(insert_data).execute()
+    analysis_id = res.data[0]["id"] if res.data else None
+
+    return success_response(
+        {
+            "analysis_id": analysis_id,
+            "overall_score": overall_score,
+            "signal": signal,
+            "matched_skills": matched_skills,
+            "missing_skills": missing_skills,
+            "recommendations": recommendations,
+            "experience_alignment": experience_alignment,
+        },
+        status_code=201,
+    )
+
+@app.get("/api/v1/analyze/session/{analysis_id}")
+def get_analysis_session(
+    analysis_id: UUID, token_data: Dict[str, Any] = Depends(require_access_token)
+):
+    supabase = get_supabase_client()
+    analysis = (
+        supabase.table("analyses")
+        .select("*")
+        .eq("id", str(analysis_id))
+        .single()
+        .execute()
+    ).data
+    if not analysis:
+        raise FitGapException("NOT_FOUND", "Analysis not found", 404)
+
+    overall_score = analysis.get("overall_score") or 0
+    if overall_score >= 80:
+        signal = "green"
+    elif overall_score >= 40:
+        signal = "yellow"
+    else:
+        signal = "red"
+
+    return success_response(
+        {
+            "analysis_id": analysis.get("id"),
+            "resume_id": analysis.get("resume_id"),
+            "posting_id": analysis.get("posting_id"),
+            "overall_score": overall_score,
+            "signal": signal,
+            "fit_items": analysis.get("fit_items") or [],
+            "gap_items": analysis.get("gap_items") or [],
+            "over_items": analysis.get("over_items") or [],
+            "summary": analysis.get("explanation") or "",
+            "confidence": analysis.get("confidence") or "Medium",
+        }
+    )
+
+@app.get("/api/v1/analyze/session/by-resume/{resume_id}")
+def get_latest_analysis_by_resume_session(
+    resume_id: UUID, token_data: Dict[str, Any] = Depends(require_access_token)
+):
+    user_id = token_data.get("sub")
+    supabase = get_supabase_client()
+
+    resume = (
+        supabase.table("resumes")
+        .select("id")
+        .eq("id", str(resume_id))
+        .eq("user_id", user_id)
+        .single()
+        .execute()
+    ).data
+    if not resume:
+        raise FitGapException("NOT_FOUND", "Resume not found", 404)
+
+    analysis_res = (
+        supabase.table("analyses")
+        .select("*")
+        .eq("resume_id", str(resume_id))
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+    analysis = analysis_res.data[0] if analysis_res.data else None
+    if not analysis:
+        return success_response({"analysis": None})
+
+    overall_score = analysis.get("overall_score") or 0
+    if overall_score >= 80:
+        signal = "green"
+    elif overall_score >= 40:
+        signal = "yellow"
+    else:
+        signal = "red"
+
+    return success_response(
+        {
+            "analysis": {
+                "analysis_id": analysis.get("id"),
+                "overall_score": overall_score,
+                "signal": signal,
+                "created_at": analysis.get("created_at"),
+            }
+        }
+    )
+
 # --- Resume API ---
 @app.post("/resumes")
 @app.post("/api/v1/resumes")
@@ -662,7 +851,6 @@ async def upload_resume(
             os.remove(tmp_path)
 
 @app.get("/resumes/{resume_id}")
-@app.get("/api/v1/resumes/{resume_id}")
 def get_resume(resume_id: UUID, token_data: Dict[str, Any] = Depends(require_access_token)):
     user_id = token_data.get("sub")
     supabase = get_supabase_client()
@@ -685,7 +873,6 @@ def get_resume(resume_id: UUID, token_data: Dict[str, Any] = Depends(require_acc
     })
 
 @app.patch("/resumes/{resume_id}")
-@app.patch("/api/v1/resumes/{resume_id}")
 def update_resume(resume_id: UUID, update: ResumeUpdate, token_data: Dict[str, Any] = Depends(require_access_token)):
     user_id = token_data.get("sub")
     supabase = get_supabase_client()
@@ -714,7 +901,6 @@ def update_resume(resume_id: UUID, update: ResumeUpdate, token_data: Dict[str, A
     })
 
 @app.delete("/resumes/{resume_id}")
-@app.delete("/api/v1/resumes/{resume_id}")
 def delete_resume(resume_id: UUID, token_data: Dict[str, Any] = Depends(require_access_token)):
     user_id = token_data.get("sub")
     supabase = get_supabase_client()

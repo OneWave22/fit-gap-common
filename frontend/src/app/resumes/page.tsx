@@ -200,9 +200,7 @@ export default function ResumesPage() {
                     Authorization: `Bearer ${accessToken}`,
                   },
                   credentials: "include",
-                  body: JSON.stringify({
-                    resume_id: resumeId,
-                  }),
+                  body: JSON.stringify({}),
                 });
                 const json = await res.json().catch(() => null);
                 if (!res.ok) {
